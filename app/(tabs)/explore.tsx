@@ -1,15 +1,16 @@
-import { fetchPosts } from "@/api/post.api";
 import EmptyState from "@/components/empty-state";
 import { PostSkeleton } from "@/components/post-skeleton";
+import { usePosts } from "@/hooks/usePosts";
 import { Post } from "@/types/post";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { SlidersHorizontal } from "lucide-react-native";
-import React, { useEffect, useState } from "react";
+import { Pencil, SlidersHorizontal } from "lucide-react-native";
+import React, { useState } from "react";
 import {
   FlatList,
   Platform,
+  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
@@ -17,37 +18,22 @@ import {
 } from "react-native";
 
 export default function ExploreTab() {
-  const [posts, setPosts] = useState<Post[]>([]);
+  const { posts, loading, editPost, refresh } = usePosts();
+
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // filter state
+  // filter
   const [showFilter, setShowFilter] = useState(false);
   const [fromDate, setFromDate] = useState<Date | null>(null);
   const [toDate, setToDate] = useState<Date | null>(null);
-
-  // picker state (PENTING)
   const [showFromPicker, setShowFromPicker] = useState(false);
   const [showToPicker, setShowToPicker] = useState(false);
 
-  const loadPosts = async () => {
-    try {
-      const data = await fetchPosts();
-      setPosts(data);
-    } catch (e) {
-      console.log(e);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
+  // edit
+  const [editingPost, setEditingPost] = useState<Post | null>(null);
 
-  useEffect(() => {
-    loadPosts();
-  }, []);
-
-  // SEARCH + DATE FILTER
+  // FILTERED DATA
   const filtered = posts.filter((p) => {
     const keyword =
       p.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -60,6 +46,7 @@ export default function ExploreTab() {
     return keyword && fromOk && toOk;
   });
 
+  // RENDER LIST ITEM
   const renderItem = ({ item }: { item: Post }) => (
     <TouchableOpacity
       activeOpacity={0.85}
@@ -85,7 +72,13 @@ export default function ExploreTab() {
           elevation: 2,
         }}
       >
-        <Text style={{ fontSize: 16, fontWeight: "700" }}>{item.title}</Text>
+        <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+          <Text style={{ fontSize: 16, fontWeight: "700" }}>{item.title}</Text>
+
+          <TouchableOpacity onPress={() => setEditingPost(item)}>
+            <Pencil size={16} color="#2563eb" />
+          </TouchableOpacity>
+        </View>
 
         <Text style={{ marginTop: 4, color: "#54575e" }}>
           👨‍🌾 {item.body.petani}
@@ -102,13 +95,7 @@ export default function ExploreTab() {
             📍 {item.body.lokasi}
           </Text>
 
-          <Text
-            style={{
-              fontSize: 12,
-              color: "#54575e",
-              fontWeight: "600",
-            }}
-          >
+          <Text style={{ fontSize: 12, fontWeight: "600", color: "#54575e" }}>
             {item.body.tanggal_panen}
           </Text>
         </View>
@@ -120,18 +107,11 @@ export default function ExploreTab() {
     <>
       {/* ===== MAIN UI ===== */}
       <LinearGradient colors={["#f8fafc", "#ffffff"]} style={{ flex: 1 }}>
-        {/* SEARCH HEADER */}
-        <View
-          style={{
-            paddingTop: 56,
-            paddingHorizontal: 16,
-            paddingBottom: 16,
-          }}
-        >
+        {/* SEARCH */}
+        <View style={{ paddingTop: 56, paddingHorizontal: 16 }}>
           <View
             style={{
               flexDirection: "row",
-              alignItems: "center",
               backgroundColor: "#fff",
               borderRadius: 16,
               borderWidth: 1,
@@ -142,18 +122,13 @@ export default function ExploreTab() {
               placeholder="Search kebun / petani..."
               value={search}
               onChangeText={setSearch}
-              style={{
-                flex: 1,
-                height: 48,
-                paddingHorizontal: 16,
-              }}
+              style={{ flex: 1, height: 48, paddingHorizontal: 16 }}
             />
 
             <TouchableOpacity
               onPress={() => setShowFilter(true)}
               style={{
                 width: 48,
-                height: 48,
                 justifyContent: "center",
                 alignItems: "center",
                 borderLeftWidth: 1,
@@ -176,12 +151,13 @@ export default function ExploreTab() {
           ) : (
             <FlatList
               data={filtered}
-              keyExtractor={(item) => String(item.id)}
+              keyExtractor={(i) => String(i.id)}
               renderItem={renderItem}
               refreshing={refreshing}
-              onRefresh={() => {
+              onRefresh={async () => {
                 setRefreshing(true);
-                loadPosts();
+                await refresh();
+                setRefreshing(false);
               }}
               ListEmptyComponent={
                 <EmptyState
@@ -193,125 +169,160 @@ export default function ExploreTab() {
             />
           )}
         </View>
+      </LinearGradient>
 
-        {/* FILTER DATE BOTTOM SHEET */}
-        {showFilter && (
+      {/* ===== FILTER DATE SHEET ===== */}
+      {showFilter && (
+        <View
+          style={{
+            position: "absolute",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            backgroundColor: "#fff",
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            padding: 20,
+          }}
+        >
+          <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: 12 }}>
+            Filter Tanggal
+          </Text>
+
+          <TouchableOpacity onPress={() => setShowFromPicker(true)}>
+            <Text>📅 Dari: {fromDate?.toLocaleDateString() ?? "-"}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => setShowToPicker(true)}
+            style={{ marginTop: 12 }}
+          >
+            <Text>📅 Sampai: {toDate?.toLocaleDateString() ?? "-"}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => setShowFilter(false)}
+            style={{
+              marginTop: 20,
+              backgroundColor: "#2563eb",
+              padding: 14,
+              borderRadius: 12,
+              alignItems: "center",
+            }}
+          >
+            <Text style={{ color: "#fff", fontWeight: "600" }}>Apply</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* ===== EDIT FULL POST ===== */}
+      {editingPost && (
+        <View
+          style={{
+            position: "absolute",
+            inset: 0,
+            backgroundColor: "rgba(0,0,0,0.4)",
+          }}
+        >
           <View
             style={{
-              position: "absolute",
-              left: 0,
-              right: 0,
-              bottom: 0,
+              marginTop: 80,
               backgroundColor: "#fff",
               borderTopLeftRadius: 24,
               borderTopRightRadius: 24,
               padding: 20,
-              shadowColor: "#000",
-              shadowOpacity: 0.15,
-              shadowRadius: 20,
-              elevation: 10,
+              flex: 1,
             }}
           >
-            <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: 16 }}>
-              Filter Tanggal
-            </Text>
-
-            <Text style={{ fontSize: 12, color: "#64748b", marginBottom: 6 }}>
-              Dari tanggal
-            </Text>
-
-            <TouchableOpacity
-              onPress={() => setShowFromPicker(true)}
-              style={{
-                padding: 14,
-                borderRadius: 12,
-                borderWidth: 1,
-                borderColor: "#e5e7eb",
-                marginBottom: 12,
-              }}
-            >
-              <Text>
-                {fromDate
-                  ? fromDate.toLocaleDateString("id-ID")
-                  : "Pilih tanggal"}
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: 12 }}>
+                Edit Data Kebun
               </Text>
-            </TouchableOpacity>
 
-            <Text style={{ fontSize: 12, color: "#64748b", marginBottom: 6 }}>
-              Sampai tanggal
-            </Text>
-
-            <TouchableOpacity
-              onPress={() => setShowToPicker(true)}
-              style={{
-                padding: 14,
-                borderRadius: 12,
-                borderWidth: 1,
-                borderColor: "#e5e7eb",
-              }}
-            >
-              <Text>
-                {toDate ? toDate.toLocaleDateString("id-ID") : "Pilih tanggal"}
-              </Text>
-            </TouchableOpacity>
-
-            <View style={{ flexDirection: "row", marginTop: 20 }}>
-              <TouchableOpacity
-                onPress={() => {
-                  setFromDate(null);
-                  setToDate(null);
-                }}
-                style={{
-                  flex: 1,
-                  padding: 14,
-                  borderRadius: 12,
-                  borderWidth: 1,
-                  borderColor: "#e5e7eb",
-                  marginRight: 8,
-                  alignItems: "center",
-                }}
-              >
-                <Text style={{ fontWeight: "600" }}>Reset</Text>
-              </TouchableOpacity>
+              {(
+                [
+                  ["Judul", "title"],
+                  ["Petani", "petani"],
+                  ["Pengepul", "pengepul"],
+                  ["Koperasi", "koperasi"],
+                  ["Retail", "retail"],
+                  ["Lokasi", "lokasi"],
+                  ["Nama Kebun", "nama_kebun"],
+                  ["Tanggal Panen", "tanggal_panen"],
+                ] as const
+              ).map(([label, key]) => (
+                <View key={key} style={{ marginBottom: 10 }}>
+                  <Text style={{ fontSize: 12, color: "#64748b" }}>
+                    {label}
+                  </Text>
+                  <TextInput
+                    value={
+                      key === "title"
+                        ? editingPost.title
+                        : (editingPost.body as any)[key]
+                    }
+                    onChangeText={(v) =>
+                      setEditingPost({
+                        ...editingPost,
+                        ...(key === "title"
+                          ? { title: v }
+                          : { body: { ...editingPost.body, [key]: v } }),
+                      })
+                    }
+                    style={{
+                      borderWidth: 1,
+                      borderColor: "#e5e7eb",
+                      borderRadius: 10,
+                      padding: 12,
+                    }}
+                  />
+                </View>
+              ))}
 
               <TouchableOpacity
-                onPress={() => setShowFilter(false)}
+                onPress={async () => {
+                  await editPost(editingPost.id, {
+                    title: editingPost.title,
+                    body: editingPost.body,
+                  });
+                  setEditingPost(null);
+                }}
                 style={{
-                  flex: 1,
-                  padding: 14,
-                  borderRadius: 12,
+                  marginTop: 16,
                   backgroundColor: "#2563eb",
+                  padding: 14,
+                  borderRadius: 12,
                   alignItems: "center",
                 }}
               >
-                <Text style={{ color: "#fff", fontWeight: "600" }}>Apply</Text>
+                <Text style={{ color: "#fff", fontWeight: "700" }}>
+                  Simpan Perubahan
+                </Text>
               </TouchableOpacity>
-            </View>
+            </ScrollView>
           </View>
-        )}
-      </LinearGradient>
+        </View>
+      )}
 
-      {/* ===== DATE PICKERS (HARUS DI LUAR) ===== */}
-      {showFromPicker && (
+      {/* DATE PICKERS */}
+      {Platform.OS !== "web" && showFromPicker && (
         <DateTimePicker
           value={fromDate ?? new Date()}
           mode="date"
-          display={Platform.OS === "ios" ? "spinner" : "default"}
-          onChange={(_, date) => {
+          onChange={(_, d) => {
             setShowFromPicker(false);
-            if (date) setFromDate(date);
+            if (d) setFromDate(d);
           }}
         />
       )}
 
-      {showToPicker && (
+      {Platform.OS !== "web" && showToPicker && (
         <DateTimePicker
           value={toDate ?? new Date()}
           mode="date"
-          display={Platform.OS === "ios" ? "spinner" : "default"}
-          onChange={(_, date) => {
+          onChange={(_, d) => {
             setShowToPicker(false);
-            if (date) setToDate(date);
+            if (d) setToDate(d);
           }}
         />
       )}
