@@ -50,12 +50,7 @@ export default function ExploreTab() {
   const renderItem = ({ item }: { item: Post }) => (
     <TouchableOpacity
       activeOpacity={0.85}
-      onPress={() =>
-        router.push({
-          pathname: "/(tabs)/(posts)/[id]",
-          params: { id: String(item.id) },
-        })
-      }
+      onPress={() => router.push(`/(tabs)/(posts)/${item.id}?source=explore`)}
       style={{ marginBottom: 14 }}
     >
       <View
@@ -106,7 +101,12 @@ export default function ExploreTab() {
   return (
     <>
       {/* ===== MAIN UI ===== */}
-      <LinearGradient colors={["#f8fafc", "#ffffff"]} style={{ flex: 1 }}>
+      <LinearGradient
+        colors={["rgba(161, 187, 243, 0.25)", "#ffffff"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={{ flex: 1 }}
+      >
         {/* SEARCH */}
         <View style={{ paddingTop: 56, paddingHorizontal: 16 }}>
           <View
@@ -235,7 +235,9 @@ export default function ExploreTab() {
             }}
           >
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: 12 }}>
+              <Text
+                style={{ fontSize: 18, fontWeight: "700", marginBottom: 12 }}
+              >
                 Edit Data Kebun
               </Text>
 
@@ -279,26 +281,44 @@ export default function ExploreTab() {
                 </View>
               ))}
 
-              <TouchableOpacity
-                onPress={async () => {
-                  await editPost(editingPost.id, {
-                    title: editingPost.title,
-                    body: editingPost.body,
-                  });
-                  setEditingPost(null);
-                }}
-                style={{
-                  marginTop: 16,
-                  backgroundColor: "#2563eb",
-                  padding: 14,
-                  borderRadius: 12,
-                  alignItems: "center",
-                }}
-              >
-                <Text style={{ color: "#fff", fontWeight: "700" }}>
-                  Simpan Perubahan
-                </Text>
-              </TouchableOpacity>
+              <View style={{ flexDirection: "row", marginTop: 20 }}>
+                <TouchableOpacity
+                  onPress={() => setEditingPost(null)}
+                  style={{
+                    flex: 1,
+                    padding: 14,
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: "#e5e7eb",
+                    marginRight: 8,
+                    alignItems: "center",
+                  }}
+                >
+                  <Text style={{ fontWeight: "600" }}>Batal</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={async () => {
+                    await editPost(editingPost.id, {
+                      title: editingPost.title,
+                      body: editingPost.body,
+                    });
+                    setEditingPost(null);
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: 14,
+                    borderRadius: 12,
+                    backgroundColor: "#2563eb",
+                    alignItems: "center",
+                    opacity: loading ? 0.6 : 1,
+                  }}
+                >
+                  <Text style={{ color: "#fff", fontWeight: "700" }}>
+                    {loading ? "Menyimpan..." : "Simpan"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </ScrollView>
           </View>
         </View>

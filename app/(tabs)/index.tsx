@@ -59,12 +59,7 @@ export default function HomeTab() {
   const renderItem = ({ item }: { item: Post }) => (
     <TouchableOpacity
       activeOpacity={0.85}
-      onPress={() =>
-        router.push({
-          pathname: "/(tabs)/(posts)/[id]",
-          params: { id: String(item.id) },
-        })
-      }
+      onPress={() => router.push(`/(tabs)/(posts)/${item.id}?source=home`)}
       style={{ marginBottom: 14 }}
     >
       <View
@@ -140,10 +135,11 @@ export default function HomeTab() {
               alignItems: "center",
 
               shadowColor: "#000",
-              shadowOpacity: 0.08,
+              shadowOpacity: 0.2,
               shadowRadius: 12,
               shadowOffset: { width: 0, height: 6 },
               elevation: 4,
+              borderRadius: 20,
             }}
           >
             <View
@@ -243,7 +239,7 @@ export default function HomeTab() {
 
       {/* FAB */}
       <TouchableOpacity
-        onPress={() => alert("Add pressed")}
+        onPress={() => router.push("/modal/add-post")}
         style={{
           position: "absolute",
           right: 20,
